@@ -1,10 +1,14 @@
-# Get the Data
+# Get the data
 
 blackpast <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-06-16/blackpast.csv')
 census <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-06-16/census.csv')
 slave_routes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-06-16/slave_routes.csv')
 african_names <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-06-16/african_names.csv')
 
+# Total number of slaves in the slave routes dataset
+sum(slave_routes$n_slaves_arrived, na.rm = TRUE)
+
+# Load packages
 library(pdftools) # reading in the PDF tables
 library(tidyverse) # requires tidy 1.0 and dplyr 1.0 for below example
 library(cfeaR)
@@ -12,12 +16,14 @@ library(magrittr)
 library(scales)
 library(maps)
 library(ggmap)
-library(cfeaR)
+# library(cfeaR)
 library(gganimate)
 
+# Add % of black population that were slaves
 census %<>%
   mutate(slave_pct = black_slaves / black)
 
+# Regional slave population
 census %>%
   filter(region != 'USA Total') %>%
   group_by(region, year) %>%
@@ -33,6 +39,8 @@ census %>%
   scale_y_continuous(labels = comma) +
   scale_x_continuous(breaks = seq(1790, 1870, by = 10))
 
+# only run this next part once so you don't have to pay google... :)
+
 # cities <-
 #   slave_routes %>%
 #   rename(place = port_origin) %>%
@@ -44,12 +52,13 @@ census %>%
 #   distinct() %>%
 #   filter(!is.na(place)) %>%
 #   filter(place != '???') %>%
+#   # removed part of the string to improve geocoding performance
 #   mutate(place_clean = str_remove(place, ', port unspecified')) %>%
 #   mutate(place_clean = str_remove(place_clean, ', colony unspecified'))
 # 
 # locations_df <- mutate_geocode(cities, place_clean)
 # 
-# # some locations manually geocoded
+# # Some locations manually geocoded dues to errors in geocode algorithm
 # locations_manual <- 
 #   tribble(
 #     ~place_clean, ~lat2, ~lon2,
@@ -85,11 +94,14 @@ census %>%
 
 # saveRDS(locations_clean, 'locations_clean.rds')
 
+# The cleaned output of the above process
 locations_clean <- readRDS('locations_clean.rds')
 
+# How many distinct locations?
 locations_clean %>%
   distinct()
 
+# Aggregate by unique route
 slave_route_agg <-
   slave_routes %>%
   group_by(port_origin, port_arrival) %>%
@@ -113,6 +125,7 @@ slave_route_agg <-
 
 mapWorld <- borders("world", colour = "gray70", fill = "gray95") # create a layer of borders
 
+# Plot unique routes
 ggplot() + 
   mapWorld +
   coord_sf(xlim = c(-150, 50), ylim = c(-50, 75), expand = FALSE) +
@@ -125,11 +138,11 @@ ggplot() +
              curvature = 0.2) +
   theme_cfeaR() +
   labs(title = 'Slave Trade Routes',
-       # subtitle = 'US Regions',
        y = 'Latitude',
        x = 'Longitude') +
   scale_size(range = c(.2, .7))  
-  
+
+# Aggregate by unique route and year  
 slave_route_year <-
   slave_routes %>%
   group_by(port_origin, port_arrival, year_arrival) %>%
@@ -149,6 +162,7 @@ slave_route_year <-
                      tlon = lon),
             by = 'port_arrival') %>%
   filter(port_arrival != '???') %>%
+  # There are some routes that have same origin and destination...geom_curve does not like that
   filter(port_origin != port_arrival) 
   # manually add a row to solve animation issue at beginning...this didn't work as intended
   # add_row(port_origin = 'Lisbon',
@@ -157,6 +171,7 @@ slave_route_year <-
   #         n_slaves = 1, 
   #         flat = 38.72225, flon = -9.1393366, tlat = 21.4691137, tlon =	-78.656894)
 
+# Plot animated route by year
 p <-
   ggplot() + 
   mapWorld +
@@ -181,5 +196,9 @@ p <-
 
 animate(p, fps = 5, height = 6, width = 9, units = 'in', res = 150)
 
+# Save GIF
 anim_save("slave_trade_routes.gif")
+
+# Total number of slaves successfully geocoded
+sum(slave_route_year$n_slaves, na.rm = TRUE)
 
