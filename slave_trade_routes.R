@@ -8,6 +8,7 @@ african_names <- readr::read_csv('https://raw.githubusercontent.com/rfordatascie
 # Total number of slaves in the slave routes dataset
 sum(slave_routes$n_slaves_arrived, na.rm = TRUE)
 
+
 # Load packages
 library(pdftools) # reading in the PDF tables
 library(tidyverse) # requires tidy 1.0 and dplyr 1.0 for below example
